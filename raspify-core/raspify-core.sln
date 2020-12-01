@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30717.126
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "raspify-core", "raspify-core.csproj", "{62AF120C-9BB3-44B6-8777-B4CA6E2E47D0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{62AF120C-9BB3-44B6-8777-B4CA6E2E47D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62AF120C-9BB3-44B6-8777-B4CA6E2E47D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62AF120C-9BB3-44B6-8777-B4CA6E2E47D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62AF120C-9BB3-44B6-8777-B4CA6E2E47D0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {577CDE9B-9628-4903-B80C-5562FBD29770}
+	EndGlobalSection
+EndGlobal
