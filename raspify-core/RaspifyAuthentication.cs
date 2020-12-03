@@ -4,11 +4,13 @@ using System.IO;
 using System.Threading.Tasks;
 using static RaspifyCore.SpotifyAPIExtensions;
 
+#nullable enable
+
 namespace RaspifyCore
 {
     class RaspifyAuthentication : IDisposable
     {
-        private readonly InBrowserAuthenticator _inBrowserAuthenticator;
+        private readonly InBrowserAuthentication _inBrowserAuthenticator;
 
         private readonly string _clientId;
         private readonly string _credentialsPath;
@@ -39,7 +41,7 @@ namespace RaspifyCore
             var token = await LoadTokenAsync(_credentialsPath);
             var authenticator = new PKCEAuthenticator(_clientId, token);
 
-            authenticator.TokenRefreshed += OnTokenRefreshed;
+            authenticator.TokenRefreshed += OnTokenRefreshed!;
 
             return authenticator;
         }

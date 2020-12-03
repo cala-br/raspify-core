@@ -1,7 +1,10 @@
 ﻿using SpotifyAPI.Web;
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+
+#nullable enable
 
 namespace RaspifyCore
 {
@@ -12,6 +15,9 @@ namespace RaspifyCore
             var json = await File.ReadAllTextAsync(path);
             var token =
                 JsonSerializer.Deserialize<PKCETokenResponse>(json);
+
+            if (token is null)
+                throw new JsonException($"Couldn't load a token from {path}");
 
             return token;
         }
