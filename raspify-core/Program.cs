@@ -1,58 +1,82 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
 using System;
-using SpotifyAPI.Web.Auth;
 using SpotifyAPI.Web;
-using System.Collections.Generic;
-using Newtonsoft.Json;
-using static SpotifyAPI.Web.Scopes;
 using RaspifyCore;
+using System.Linq;
 
-namespace Example.CLI.PersistentConfig
+#nullable enable
+
+namespace RaspifyCore
 {
     public class Program
     {
-        private const string CREDENTIALS_PATH = "credentials.json";
-        private static readonly string clientId = File.ReadAllText("client_id.txt");
+        static readonly string credentialsPath = "credentials.json";
+        static readonly string clientId = File.ReadAllText("client_id.txt");
 
-        public static async Task<int> Main()
+
+        public static async Task Main()
         {
-            if (string.IsNullOrEmpty(clientId))
-            {
-                throw new NullReferenceException(
-                  "Please set SPOTIFY_CLIENT_ID via environment variables before starting the program"
-                );
-            }
-
             await Start();
-
             Console.ReadKey();
-            return 0;
         }
 
-        private static async Task Start()
+
+        static async Task Start()
         {
-            using var rAuth= new RaspifyAuth(clientId, CREDENTIALS_PATH);
+            var spotify = await GetSpotifyClientAsync();
+
+            var currentlyPlaying = await spotify
+                .Player
+                .GetCurrentlyPlaying(new PlayerCurrentlyPlayingRequest { Market = "from_token" });
+
+            TryPrintCurrentlyPlaying(currentlyPlaying);
+
+            Environment.Exit(0);
+        }
+
+        static async Task<SpotifyClient> GetSpotifyClientAsync()
+        {
+            using var rAuth = new RaspifyAuthentication(clientId, credentialsPath);
             var authenticator = await rAuth.GetAuthenticatorAsync();
 
             var config = SpotifyClientConfig
                 .CreateDefault()
                 .WithAuthenticator(authenticator);
 
-            var spotify = new SpotifyClient(config);
+            return new SpotifyClient(config);
+        }
 
-            var me = await spotify.UserProfile.Current();
 
-            var track = await spotify
-                .Player
-                .GetCurrentlyPlaying(new PlayerCurrentlyPlayingRequest { Market = "from_token" });
+        private static void TryPrintCurrentlyPlaying(CurrentlyPlaying currentlyPlaying)
+        {
+            if (currentlyPlaying.Item is FullTrack track)
+            {
+                var progress = currentlyPlaying.ProgressMs!.Value;
+                PrintTrack(track, progress);
+            }
+        }
 
-            Console.WriteLine($"Welcome {me.DisplayName} ({me.Id}), you're authenticated!");
+        private static void PrintTrack(FullTrack track, int progress)
+        {
+            var artists = track
+                .Artists
+                .Select(artist => artist.Name);
 
-            var playlists = await spotify.PaginateAll(await spotify.Playlists.CurrentUsers().ConfigureAwait(false));
-            Console.WriteLine($"Total Playlists in your Account: {playlists.Count}");
+            var albumImages = track
+                .Album
+                .Images
+                .Select(image => $"\n\t\t\t({image.Width}, {image.Height}) | {image.Url}");
 
-            Environment.Exit(0);
+            Console.WriteLine($@"
+                Name: {track.Name}
+                Artists: {string.Join(", ", artists)}
+                Duration: {TimeSpan.FromMilliseconds(track.DurationMs)}
+                Progress: {TimeSpan.FromMilliseconds(progress)}
+                    
+                Album: {track.Album.Name}
+                Covers: {string.Join(' ', albumImages)}
+            ");
         }
     }
 }
