@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace RaspifyCore
 {
-    class InBrowserAuthenticator : IDisposable
+    class InBrowserAuthentication : IDisposable
     {
         private static readonly Uri _serverUri = new Uri("http://localhost:5000/callback");
         private static readonly int _serverPort = 5_000;
@@ -18,8 +20,10 @@ namespace RaspifyCore
         private readonly string _clientId;
         private readonly string _credentialsPath;
 
+        private readonly AutoResetEvent _tokenReceived = new(initialState: false);
 
-        public InBrowserAuthenticator(string clientId, string credentialsPath)
+
+        public InBrowserAuthentication(string clientId, string credentialsPath)
         {
             _clientId = clientId;
             _credentialsPath = credentialsPath;
@@ -28,45 +32,52 @@ namespace RaspifyCore
 
         public async Task FetchCredentialsAsync()
         {
-            var tokenReceived = new AutoResetEvent(false);
-
             var (verifier, challenge) = PKCEUtil.GenerateCodes();
-            await StartServerAsync(verifier, tokenReceived);
+            await StartServerAsync(verifier);
+            
+            var uri = GetRequestUri(challenge);
+            TryOpenBrowser(uri);
 
-            var request = CreateRequest(challenge);
-            var uri = request.ToUri();
-
-            try
-            {
-                BrowserUtil.Open(uri);
-            }
-            catch (Exception)
-            {
-                Console.WriteLine($"Unable to open URL, manually open: {uri}");
-            }
-
-            tokenReceived.WaitOne();
+            _tokenReceived.WaitOne();
         }
 
 
-        private async Task StartServerAsync(string verifier, AutoResetEvent tokenReceived)
+        private async Task StartServerAsync(string verifier)
         {
             await Server.Start();
             Server.AuthorizationCodeReceived += async (sender, response) =>
             {
                 await OnAuthorizationCodeReceived(response, verifier);
-                tokenReceived.Set();
+                _tokenReceived.Set();
             };
         }
 
         private async Task OnAuthorizationCodeReceived(AuthorizationCodeResponse response, string verifier)
         {
             await Server.Stop();
-            var token = await new OAuthClient().RequestToken(
-              new PKCETokenRequest(_clientId, response.Code, Server.BaseUri, verifier)
-            );
+            var token = await RequestTokenAsync(response.Code, verifier);
 
             await token.SaveAsync(_credentialsPath);
+        }
+
+        private async Task<PKCETokenResponse> RequestTokenAsync(string code, string verifier)
+        {
+            var oAuthClient = new OAuthClient();
+            var tokenRequest = new PKCETokenRequest(
+                code: code,
+                clientId: _clientId,
+                redirectUri: Server.BaseUri,
+                codeVerifier: verifier
+            );
+            
+            return await oAuthClient.RequestToken(tokenRequest);
+        }
+
+        private Uri GetRequestUri(string challenge)
+        {
+            var request = CreateRequest(challenge);
+            var uri = request.ToUri();
+            return uri;
         }
 
         private LoginRequest CreateRequest(string challenge)
@@ -87,10 +98,23 @@ namespace RaspifyCore
         }
 
 
+        private static void TryOpenBrowser(Uri uri)
+        {
+            try {
+                BrowserUtil.Open(uri);
+            }
+            catch (Exception) {
+                Console.WriteLine($"Unable to open URL, manually open: {uri}");
+            }
+        }
+
+
         public void Dispose()
         {
             if (_server.IsValueCreated)
                 Server.Dispose();
+
+            _tokenReceived.Dispose();
         }
     }
 }
