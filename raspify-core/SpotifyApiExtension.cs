@@ -1,6 +1,7 @@
 ﻿using SpotifyAPI.Web;
-using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace RaspifyCore
 {
-    static class SpotifyAPIExtensions
+    static class SpotifyApiExtension
     {
         public static async Task<PKCETokenResponse> LoadTokenAsync(string path)
         {
@@ -41,6 +42,15 @@ namespace RaspifyCore
                 .WithAuthenticator(authenticator);
 
             return new SpotifyClient(config);
+        }
+
+
+        public static List<string> GetArtistNames(this FullTrack track)
+        {
+            return track
+                .Artists
+                .Select(artist => artist.Name)
+                .ToList();
         }
     }
 }
