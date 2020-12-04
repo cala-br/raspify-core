@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using static RaspifyCore.SpotifyAPIExtensions;
+using ApiExt = RaspifyCore.SpotifyApiExtension;
 
 #nullable enable
 
@@ -38,7 +38,7 @@ namespace RaspifyCore
 
         private async Task<IAuthenticator> AuthenticateFromCredentialsAsync()
         {
-            var token = await LoadTokenAsync(_credentialsPath);
+            var token = await ApiExt.LoadTokenAsync(_credentialsPath);
             var authenticator = new PKCEAuthenticator(_clientId, token);
 
             authenticator.TokenRefreshed += OnTokenRefreshed!;

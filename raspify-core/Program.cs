@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using System;
 using SpotifyAPI.Web;
 using System.Linq;
-using static RaspifyCore.SpotifyAPIExtensions;
+using ApiExt = RaspifyCore.SpotifyApiExtension;
 
 #nullable enable
 
@@ -25,7 +25,7 @@ namespace RaspifyCore
         private static async Task Start()
         {
             var spotify = 
-                await CreateSpotifyClientAsync(clientId, credentialsPath);
+                await ApiExt.CreateSpotifyClientAsync(clientId, credentialsPath);
 
             var currentlyPlaying = await spotify
                 .Player
