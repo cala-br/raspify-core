@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
-    <RootNamespace>raspify_core</RootNamespace>
+    <RootNamespace>RaspifyCore</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
