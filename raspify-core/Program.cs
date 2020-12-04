@@ -39,33 +39,8 @@ namespace RaspifyCore
 
         private static void TryPrintCurrentlyPlaying(CurrentlyPlaying currentlyPlaying)
         {
-            if (currentlyPlaying.Item is FullTrack track)
-            {
-                var progress = currentlyPlaying.ProgressMs!.Value;
-                PrintTrack(track, progress);
-            }
-        }
-
-        private static void PrintTrack(FullTrack track, int progress)
-        {
-            var artists = track
-                .Artists
-                .Select(artist => artist.Name);
-
-            var albumImages = track
-                .Album
-                .Images
-                .Select(image => $"\n\t\t\t({image.Width}, {image.Height}) | {image.Url}");
-
-            Console.WriteLine($@"
-                Name: {track.Name}
-                Artists: {string.Join(", ", artists)}
-                Duration: {TimeSpan.FromMilliseconds(track.DurationMs)}
-                Progress: {TimeSpan.FromMilliseconds(progress)}
-                    
-                Album: {track.Album.Name}
-                Covers: {string.Join(' ', albumImages)}
-            ");
+            CurrentTrack currentTrack = currentlyPlaying;
+            Console.WriteLine(currentTrack);
         }
     }
 }
