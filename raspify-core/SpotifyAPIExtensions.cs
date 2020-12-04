@@ -29,5 +29,18 @@ namespace RaspifyCore
 
             await File.WriteAllTextAsync(path, serializedToken);
         }
+
+
+        public static async Task<SpotifyClient> CreateSpotifyClientAsync(string clientId, string credentialsPath)
+        {
+            using var rAuth = new RaspifyAuthentication(clientId, credentialsPath);
+            var authenticator = await rAuth.GetAuthenticatorAsync();
+
+            var config = SpotifyClientConfig
+                .CreateDefault()
+                .WithAuthenticator(authenticator);
+
+            return new SpotifyClient(config);
+        }
     }
 }

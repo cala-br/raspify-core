@@ -2,8 +2,8 @@
 using System.Threading.Tasks;
 using System;
 using SpotifyAPI.Web;
-using RaspifyCore;
 using System.Linq;
+using static RaspifyCore.SpotifyAPIExtensions;
 
 #nullable enable
 
@@ -22,29 +22,18 @@ namespace RaspifyCore
         }
 
 
-        static async Task Start()
+        private static async Task Start()
         {
-            var spotify = await GetSpotifyClientAsync();
+            var spotify = 
+                await CreateSpotifyClientAsync(clientId, credentialsPath);
 
             var currentlyPlaying = await spotify
                 .Player
-                .GetCurrentlyPlaying(new PlayerCurrentlyPlayingRequest { Market = "from_token" });
+                .GetCurrentlyPlaying(new (){ Market = "from_token" });
 
             TryPrintCurrentlyPlaying(currentlyPlaying);
 
             Environment.Exit(0);
-        }
-
-        static async Task<SpotifyClient> GetSpotifyClientAsync()
-        {
-            using var rAuth = new RaspifyAuthentication(clientId, credentialsPath);
-            var authenticator = await rAuth.GetAuthenticatorAsync();
-
-            var config = SpotifyClientConfig
-                .CreateDefault()
-                .WithAuthenticator(authenticator);
-
-            return new SpotifyClient(config);
         }
 
 
