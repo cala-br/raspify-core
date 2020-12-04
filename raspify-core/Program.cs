@@ -31,16 +31,10 @@ namespace RaspifyCore
                 .Player
                 .GetCurrentlyPlaying(new (){ Market = "from_token" });
 
-            TryPrintCurrentlyPlaying(currentlyPlaying);
+            var track = CurrentTrack.From(currentlyPlaying);
+            Console.WriteLine(track);
 
             Environment.Exit(0);
-        }
-
-
-        private static void TryPrintCurrentlyPlaying(CurrentlyPlaying currentlyPlaying)
-        {
-            CurrentTrack currentTrack = currentlyPlaying;
-            Console.WriteLine(currentTrack);
         }
     }
 }

@@ -2,8 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json;
 
 #nullable enable
 
@@ -19,45 +18,53 @@ namespace RaspifyCore
         TimeSpan Duration,
         TimeSpan Progress
     ) {
-        public static implicit operator CurrentTrack(CurrentlyPlaying currentlyPlaying)
+        public static CurrentTrack From(CurrentlyPlaying currentlyPlaying)
         {
-            if (currentlyPlaying.Item is not FullTrack)
-                throw new ArgumentException($"{nameof(currentlyPlaying)}: item must be a full track");
-
-            var track = currentlyPlaying.Item as FullTrack;
-            
-            var progress =
-                currentlyPlaying.ProgressMs!.Value;
-                
-            var artists = track!
-                .Artists
-                .Select(artist => artist.Name)
-                .ToList();
-
-            return new(
-                track.Name,
-                artists,
-                track.Album.Name,
-                track.Album.Images,
-                TimeSpan.FromMilliseconds(track.DurationMs),
-                TimeSpan.FromMilliseconds(progress)
+            return From(
+                track: currentlyPlaying.Item as FullTrack,
+                progress: currentlyPlaying.ProgressMs
             );
         }
 
+
+        public static CurrentTrack From(FullTrack? track, int? progress)
+        {
+            if (!progress.HasValue)
+                throw new ArgumentNullException(nameof(progress));
+
+            return (CurrentTrack)track with
+            {
+                Progress = TimeSpan.FromMilliseconds(progress.Value),
+            };
+        }
+
+
+        public static CurrentTrack From(FullTrack? track)
+        {
+            if (track is null)
+                throw new ArgumentNullException(nameof(track));
+
+            return new(
+                track.Name,
+                track.GetArtistNames(),
+                track.Album.Name,
+                track.Album.Images,
+                TimeSpan.FromMilliseconds(track.DurationMs),
+                TimeSpan.FromMilliseconds(0)
+            );
+        }
+
+
         public override string ToString()
         {
-            var albumImages = AlbumImages
-                .Select(image => $"\n\t\t\t({image.Width}, {image.Height}) | {image.Url}");
-
-            return $@"
-                Name: {Name}
-                Artists: {string.Join(", ", Artists)}
-                Duration: {Duration}
-                Progress: {Progress}
-                    
-                Album: {AlbumName}
-                Covers: {string.Join(' ', albumImages)}
-            ";
+            return JsonSerializer.Serialize(this, new()
+            {
+                WriteIndented = true,
+            });
         }
+
+
+        public static implicit operator CurrentTrack(CurrentlyPlaying currentlyPlaying) => From(currentlyPlaying);
+        public static implicit operator CurrentTrack(FullTrack? track) => From(track);
     }
 }
