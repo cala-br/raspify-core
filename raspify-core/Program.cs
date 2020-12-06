@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
 using System;
-using SpotifyAPI.Web;
-using System.Linq;
+using System.IO.Pipes;
 using ApiExt = RaspifyCore.SpotifyApiExtension;
+using SpotifyAPI.Web;
 
 #nullable enable
 
@@ -17,24 +17,38 @@ namespace RaspifyCore
 
         public static async Task Main()
         {
-            await Start();
-            Console.ReadKey();
+            await StartAsync();
         }
 
 
-        private static async Task Start()
+        private static async Task StartAsync()
         {
             var spotify = 
                 await ApiExt.CreateSpotifyClientAsync(clientId, credentialsPath);
 
-            var currentlyPlaying = await spotify
-                .Player
-                .GetCurrentlyPlaying(new (){ Market = "from_token" });
+            using var server = new RaspifyServer();
 
-            var track = CurrentTrack.From(currentlyPlaying);
-            Console.WriteLine(track);
+            server.ClientConnected += async (s, e) =>
+            {
+                Console.WriteLine("Client connected");
 
-            Environment.Exit(0);
+                var currentlyPlaying = await spotify
+                    .Player
+                    .GetCurrentlyPlaying(new() { Market = "from_token" });
+
+                if (currentlyPlaying is null)
+                    return;
+
+                var track = CurrentTrack.From(currentlyPlaying);
+                await server.SendAllAsync(track.ToString());
+
+                Console.WriteLine("Sent");
+            };
+
+            server.Start();
+            Console.WriteLine("Started");
+            Console.ReadKey();
+            Console.WriteLine("Ended");
         }
     }
 }
