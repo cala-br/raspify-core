@@ -1,7 +1,9 @@
 ﻿using SpotifyAPI.Web;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -51,6 +53,19 @@ namespace RaspifyCore
                 .Artists
                 .Select(artist => artist.Name)
                 .ToList();
+        }
+
+
+        public static async Task DownloadAsync(this Image image, string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException($"{nameof(path)} must have a value");
+
+            using var client = new WebClient();
+            await Task.Run(() => 
+            {
+                client.DownloadFile(image.Url, path);
+            });
         }
     }
 }

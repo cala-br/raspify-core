@@ -4,6 +4,9 @@ using System;
 using System.IO.Pipes;
 using ApiExt = RaspifyCore.SpotifyApiExtension;
 using SpotifyAPI.Web;
+using System.Linq;
+using System.Net;
+using System.Collections.Generic;
 
 #nullable enable
 
@@ -27,8 +30,7 @@ namespace RaspifyCore
                 await ApiExt.CreateSpotifyClientAsync(clientId, credentialsPath);
 
             using var server = new RaspifyServer();
-
-            server.ClientConnected += async (s, e) =>
+            server.ClientConnected += async (_, _) =>
             {
                 Console.WriteLine("Client connected");
 
@@ -39,10 +41,32 @@ namespace RaspifyCore
                 if (currentlyPlaying is null)
                     return;
 
-                var track = CurrentTrack.From(currentlyPlaying);
-                await server.SendAllAsync(track.ToString());
+                var track =
+                    CurrentTrack.From(currentlyPlaying);
 
-                Console.WriteLine("Sent");
+                var desktopPath =
+                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+
+                var trimmedName = track
+                    .Name
+                    .Replace(' ', '_')
+                    .Trim();
+
+                var basePath = $@"{desktopPath}\raspify";
+                var directory = Directory.CreateDirectory(basePath);
+
+                var tasks = track
+                    .AlbumImages
+                    .Select(image =>
+                    {
+                        var savePath =
+                            $@"{basePath}\{image.Width}x{image.Height}.jpeg";
+
+                        return image.DownloadAsync(savePath);
+                    });
+
+                Task.WaitAll(tasks.ToArray());
+                await server.SendAllAsync(track.ToString());
             };
 
             server.Start();
