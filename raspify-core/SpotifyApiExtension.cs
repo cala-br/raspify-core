@@ -59,7 +59,7 @@ namespace RaspifyCore
         public static async Task DownloadAsync(this Image image, string path)
         {
             if (string.IsNullOrWhiteSpace(path))
-                throw new ArgumentException($"{nameof(path)} must have a value");
+                throw new ArgumentException(nameof(path));
 
             using var client = new WebClient();
             await Task.Run(() => 
