@@ -103,8 +103,10 @@ namespace RaspifyCore
             try {
                 BrowserUtil.Open(uri);
             }
-            catch (Exception) {
-                Console.WriteLine($"Unable to open URL, manually open: {uri}");
+            catch {
+                ConsoleUI
+                    .GetInstance()
+                    .PushLogMessage($"Unable to open URL, manually open: {uri}");
             }
         }
 
