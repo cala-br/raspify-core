@@ -18,10 +18,12 @@ namespace RaspifyCore
 {
     class RaspifyServer : IDisposable
     {
-        private ConcurrentDictionary<Socket, Socket> _activeClients = new();
+        private List<Socket> _activeClients = new();
         private CancellationTokenSource _tokenSource = new();
-
-        public event EventHandler? ClientConnected;
+        
+        public event EventHandler<ClientEventArgs>? ClientDisconnected;
+        public event EventHandler<ClientEventArgs>? ClientConnected;
+        public event EventHandler<string>? OnError;
 
 
         public void Start()
@@ -31,42 +33,69 @@ namespace RaspifyCore
 
         private async void SpawnNew()
         {
-            try
-            {
-                await Task.Run(StartNewPipeServer, _tokenSource.Token);
+            try {
+                await Task.Run(StartServer, _tokenSource.Token);
             }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
+            catch (Exception e) {
+                OnError?.Invoke(this, e.Message);
             }
         }
 
-        private async Task StartNewPipeServer()
+        private async Task StartServer()
         {
-            var token = _tokenSource.Token;
-            using var server =
+            using var server = 
                 new Socket(SocketType.Stream, ProtocolType.Tcp);
-
+            
             server.Bind(new IPEndPoint(IPAddress.Any, 50_000));
-            server.Listen(1);
+            server.Listen();
 
-            var client = await server.AcceptAsync();
-            token.ThrowIfCancellationRequested();
-
-            ClientConnected?.Invoke(this, new());
-            _activeClients.TryAdd(server, client);
-
-            while (server.Connected)
+            var token = _tokenSource.Token;
+            while (true)
+            {
+                var client = await server.AcceptAsync();
                 token.ThrowIfCancellationRequested();
 
-            _activeClients.Remove(server, out var _);
-            Console.WriteLine("Done");
+                _ = Task.Run(() => HandleClient(client));
+            }
+        }
+
+
+        private void HandleClient(Socket client)
+        {
+            var ep = client.RemoteEndPoint.Clone();
+            OnClientConnected(client, ep);
+
+            bool shouldSpin() =>
+                client.Connected &&
+                !_tokenSource.IsCancellationRequested;
+
+            while (shouldSpin())
+                ;
+
+            OnClientDisconnected(client, ep);
+            client.Dispose();
+        }
+
+        private void OnClientConnected(Socket client, EndPoint endPoint)
+        {
+            lock (_activeClients)
+                _activeClients.Add(client);
+
+            ClientConnected?.Invoke(this, new(endPoint));
+        }
+
+        private void OnClientDisconnected(Socket client, EndPoint endPoint)
+        {
+            lock (_activeClients)
+                _activeClients.Remove(client);
+
+            ClientDisconnected?.Invoke(this, new(endPoint));
         }
 
 
         public async Task SendAllAsync(string message)
         {
-            foreach (var client in _activeClients.Values)
+            foreach (var client in _activeClients.ToList())
                 await SendOneAsync(client, message);
         }
 
@@ -78,12 +107,25 @@ namespace RaspifyCore
                 using var netStream = new NetworkStream(client);
                 using var outStream = new StreamWriter(netStream);
 
-                await outStream.WriteAsync(message + '\0');
+                var messageLength = message.Length.ToString("0000");
+
+                await outStream.WriteAsync(messageLength);
+                await outStream.WriteAsync(message);
                 await outStream.FlushAsync();
             }
             catch
             {
-                Console.WriteLine("Error when sending");
+                OnError?.Invoke(this, $"Error when sending to {client.RemoteEndPoint}");
+            }
+        }
+
+
+        public void DisconnectAll()
+        {
+            lock (_activeClients)
+            {
+                _activeClients.ForEach(c => c.Disconnect(reuseSocket: false));
+                _activeClients.Clear();
             }
         }
 
@@ -92,6 +134,20 @@ namespace RaspifyCore
         {
             _tokenSource.Cancel();
             _tokenSource.Dispose();
+        }
+    }
+
+
+    class ClientEventArgs : EventArgs
+    {
+        public EndPoint EndPoint { get; init; }
+
+        public ClientEventArgs(EndPoint endPoint)
+        {
+            if (endPoint is null)
+                throw new ArgumentNullException(nameof(endPoint));
+
+            EndPoint = endPoint;
         }
     }
 }

@@ -1,12 +1,8 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
 using System;
-using System.IO.Pipes;
 using ApiExt = RaspifyCore.SpotifyApiExtension;
 using SpotifyAPI.Web;
-using System.Linq;
-using System.Net;
-using System.Collections.Generic;
 
 #nullable enable
 
@@ -16,6 +12,7 @@ namespace RaspifyCore
     {
         static readonly string credentialsPath = "credentials.json";
         static readonly string clientId = File.ReadAllText("client_id.txt");
+        static readonly ConsoleUI console = ConsoleUI.GetInstance();
 
 
         public static async Task Main()
@@ -26,53 +23,75 @@ namespace RaspifyCore
 
         private static async Task StartAsync()
         {
-            var spotify = 
+            var spotify =
                 await ApiExt.CreateSpotifyClientAsync(clientId, credentialsPath);
 
             using var server = new RaspifyServer();
-            server.ClientConnected += async (_, _) =>
-            {
-                Console.WriteLine("Client connected");
-
-                var currentlyPlaying = await spotify
-                    .Player
-                    .GetCurrentlyPlaying(new() { Market = "from_token" });
-
-                if (currentlyPlaying is null)
-                    return;
-
-                var track =
-                    CurrentTrack.From(currentlyPlaying);
-
-                var desktopPath =
-                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-
-                var trimmedName = track
-                    .Name
-                    .Replace(' ', '_')
-                    .Trim();
-
-                var basePath = $@"{desktopPath}\raspify";
-                var directory = Directory.CreateDirectory(basePath);
-
-                var tasks = track
-                    .AlbumImages
-                    .Select(image =>
-                    {
-                        var savePath =
-                            $@"{basePath}\{image.Width}x{image.Height}.jpeg";
-
-                        return image.DownloadAsync(savePath);
-                    });
-
-                Task.WaitAll(tasks.ToArray());
-                await server.SendAllAsync(track.ToString());
-            };
+            AddServerHandlers(spotify, server);
 
             server.Start();
-            Console.WriteLine("Started");
-            Console.ReadKey();
-            Console.WriteLine("Ended");
+            console.PushLogMessage("Started");
+            HandleConsoleCommands(server);
+            console.PushLogMessage("Ended");
+        }
+
+        private static void AddServerHandlers(SpotifyClient spotify, RaspifyServer server)
+        {
+            server.ClientConnected += async (s, e) =>
+            {
+                await OnClientConnected(e, spotify, server);
+            };
+
+            server.ClientDisconnected += (s, e) =>
+            {
+                console.PushLogMessage($"Client disconnected {e.EndPoint}");
+            };
+
+            server.OnError += (s, msg) =>
+            {
+                console.PushLogMessage(msg);
+            };
+        }
+
+        private static async Task OnClientConnected(ClientEventArgs e, SpotifyClient spotify, RaspifyServer server)
+        {
+            console.PushLogMessage($"Client connected {e.EndPoint}");
+
+            var currentlyPlaying = await spotify
+                .Player
+                .GetCurrentlyPlaying(new() { Market = "from_token" });
+
+            if (currentlyPlaying is null)
+            {
+                console.PushLogMessage("Nothing playing");
+                return;
+            }
+
+            var track = CurrentTrack
+                .From(currentlyPlaying)
+                .ToString();
+
+            await server.SendAllAsync(track);
+        }
+    
+    
+        private static void HandleConsoleCommands(RaspifyServer server)
+        {
+            while (true)
+            {
+                console.Draw();
+                var key = Console.ReadKey();
+                switch (key.Key)
+                {
+                    case ConsoleKey.D:
+                        console.PushLogMessage("Disconnecting clients...");
+                        server.DisconnectAll();
+                        break;
+
+                    case ConsoleKey.E:
+                        return;
+                }
+            }
         }
     }
 }
