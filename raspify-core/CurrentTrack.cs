@@ -31,7 +31,7 @@ namespace RaspifyCore
             if (!progress.HasValue)
                 throw new ArgumentNullException(nameof(progress));
 
-            return (CurrentTrack)track with
+            return From(track) with
             {
                 Progress = TimeSpan.FromMilliseconds(progress.Value),
             };
@@ -61,9 +61,5 @@ namespace RaspifyCore
                 WriteIndented = true,
             });
         }
-
-
-        public static implicit operator CurrentTrack(CurrentlyPlaying currentlyPlaying) => From(currentlyPlaying);
-        public static implicit operator CurrentTrack(FullTrack? track) => From(track);
     }
 }
